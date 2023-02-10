@@ -24,7 +24,7 @@
   - there may exist some emtpy diagrams 
 
 #### Others
-1. Persistent images (pimgs0/pimgs1) and persistent diagrams (diagrams['H0']/diagrams['H1']) 
+1. Persistent images (pimgs0/pimgs1) and persistent diagrams (diagrams['H0']/diagrams['H1'])  
    Persistent diagram is computed according to 3-hop neighborhood structure of the target node. It is a set of 2D points. 
    Persistent image is the vectorized representation of a diagram, and can be viewed as a fixed length vector. 
    Both diagram and image are the instances of topological structure summaries, so please be sure to use only one of them for supervision signals.  

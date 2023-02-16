@@ -1,3 +1,4 @@
+import argparse
 import dgl
 import dgl.function as fn
 import torch as th
@@ -67,7 +68,15 @@ def evaluate(model, g, features, labels, mask):
 
 
 if __name__ == '__main__':
-
+    parser = argparse.ArgumentParser(description="GCN")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="elliptic",
+        help="Dataset name ('ellipticGraph')",
+    )
+    args = parser.parse_args()
+    print(f"Training with DGL built-in GCN module")
     g, features, num_nodes, feature_dim, train_ids, test_ids, train_labels, test_labels = load_elliptic_data(
         'dataset/ellipticGraph')
     net = Net(feature_dim, 100, 2)

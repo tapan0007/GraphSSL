@@ -1,4 +1,4 @@
 dataset/*
 *.pyc
 *.DS_Store
-*-checkpoint.ipynb
+*.ipynb

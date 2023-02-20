@@ -1,6 +1,7 @@
 import dgl
 import sklearn.model_selection as sk
 import numpy as np
+#from graphSSL import LogisticRegression
 import torch as th
 import torch
 
@@ -52,6 +53,7 @@ def evaluate(model, g, features, labels, mask):
 
 def evaluateSSL(model,features,supervised_features,train_ids, test_ids, train_labels, test_labels, num_class = 2, supervised=False):
     model.eval()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     with torch.no_grad():
         embeddings, sim = model(g, features, torch.randperm(features.shape[0]))
     _embeddings = embeddings.detach()
@@ -79,3 +81,16 @@ def evaluateSSL(model,features,supervised_features,train_ids, test_ids, train_la
     model_name = "SSL" if supervised == False else "supervised"
     print('Average test accuracy for {}: {:.2f} with std: {:.2f}'.format(model_name,test_acc, test_std))    
         
+    
+def save_model(model, path):
+    try:
+        th.save(model.state_dict(), path)
+        print("Model saved to {}".format(path))
+    except Exception as e:
+        print("Model not saved")
+        print(e)
+
+def load_model(model_class, path, in_size, out_size):
+    model = model_class(in_size, 100, out_size)
+    model.load_state_dict(th.load(path))
+    return model.eval()

@@ -98,6 +98,13 @@ if __name__ == "__main__":
         help="Number of epochs to train SSL method",
     )
 
+        parser.add_argument(
+        "--hidden_dim",
+        type=int,
+        default=64,
+        help="Dimensions of the encoder hidden layer"
+    )
+
     parser.add_argument(
         "--out_dim",
         type=int,
@@ -118,7 +125,7 @@ if __name__ == "__main__":
     # create GraphSAGE model
     in_size = features.shape[1]
     out_size = args.out_dim
-    model = Encoder(in_size, 64, out_size, 2).to(device)
+    model = Encoder(in_size, args.hidden_dim, out_size, 2).to(device)
 
     # model training
     print("Training...")

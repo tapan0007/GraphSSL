@@ -2,3 +2,5 @@ dataset/*
 *.pyc
 *.DS_Store
 *.ipynb
+model_artifacts/*
+performance/*

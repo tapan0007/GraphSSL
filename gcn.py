@@ -39,22 +39,11 @@ class Net(nn.Module):
         x = self.layer2(g, x)
         return x
 
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="GCN")
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        default="elliptic",
-        help="Dataset name ('ellipticGraph')",
-    )
-    args = parser.parse_args()
+def train_gcn_model(path_to_data='dataset/ellipticGraph'):
     print(f"Training with DGL built-in GCN module")
-    g, features, num_nodes, feature_dim, train_ids, test_ids, train_labels, test_labels = load_elliptic_data(
-        'dataset/ellipticGraph')
+    g, features, num_nodes, feature_dim, train_ids, test_ids, train_labels, test_labels = load_elliptic_data(path_to_data)
     net = Net(feature_dim, 100, 2)
-    remove_transform = (RemoveSelfLoop())
-    g = remove_transform(g)
+
     g.add_edges(g.nodes(), g.nodes())
 
     optimizer = th.optim.Adam(net.parameters(), lr=1e-2)
@@ -71,10 +60,32 @@ if __name__ == '__main__':
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
         if epoch >= 3:
             dur.append(time.time() - t0)
 
         acc = evaluate(net, g, features, test_labels, test_ids)
         print("Epoch {:05d} | Loss {:.4f} | Test Acc {:.4f} | Time(s) {:.4f}".format(
             epoch, loss.item(), acc, np.mean(dur)))
+
+    print("Model Done Training")
+    return net
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="GCN")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="elliptic",
+        help="Dataset name ('ellipticGraph')",
+    )
+    args = parser.parse_args()
+    model = train_gcn_model()
+    try:
+        path = "./model_artifacts/gcn.pth"
+        th.save(model.state_dict(), path)
+        print("Model saved to {}".format(path))
+    except Exception as e:
+        print("Model not saved")
+        print(e)
+

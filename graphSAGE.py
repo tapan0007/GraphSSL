@@ -1,8 +1,8 @@
 import argparse
-import torch
+import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import load_elliptic_data, evaluate
+from utils import load_elliptic_data, evaluate, save_model
 import dgl.nn as dglnn
 from dgl import AddSelfLoop
 
@@ -24,6 +24,41 @@ class SAGE(nn.Module):
                 h = F.relu(h)
                 h = self.dropout(h)
         return h
+    
+def train_sage_model(path_to_data='dataset/ellipticGraph'):
+    g, features, num_nodes, feature_dim, train_ids, test_ids, train_labels, test_labels = load_elliptic_data(
+                path_to_data)
+    device = th.device("cuda" if th.cuda.is_available() else "cpu")
+    g = g.int().to(device)
+
+    # create GraphSAGE model
+    in_size = features.shape[1]
+    out_size = 2
+    model = SAGE(in_size, 100, out_size).to(device)
+
+    # model training
+    print("Training graphSAGE model...")
+    # define train/val samples, loss function and optimizer
+    loss_fcn = nn.CrossEntropyLoss()
+    optimizer = th.optim.Adam(model.parameters(), lr=1e-2, weight_decay=5e-4)
+
+    # training loop
+    for epoch in range(200):
+        model.train()
+        logits = model(g, features)
+        loss = loss_fcn(logits[train_ids], train_labels)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        acc = evaluate(model, g, features, test_labels, test_ids)
+        print(
+            "Epoch {:05d} | Loss {:.4f} | Accuracy {:.4f} ".format(
+                epoch, loss.item(), acc
+            )
+        )
+    print("Done Training")
+    return model 
+
 
 
 if __name__ == "__main__":
@@ -46,34 +81,6 @@ if __name__ == "__main__":
     #         'dataset/ellipticGraph')
     # else:
     #     raise ValueError("Unknown dataset: {}".format(args.dataset))
-    g, features, num_nodes, feature_dim, train_ids, test_ids, train_labels, test_labels = load_elliptic_data(
-                'dataset/ellipticGraph')
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    g = g.int().to(device)
-
-    # create GraphSAGE model
-    in_size = features.shape[1]
-    out_size = 2
-    model = SAGE(in_size, 100, out_size).to(device)
-
-    # model training
-    print("Training...")
-    # define train/val samples, loss function and optimizer
-    loss_fcn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=5e-4)
-
-    # training loop
-    for epoch in range(200):
-        model.train()
-        logits = model(g, features)
-        loss = loss_fcn(logits[train_ids], train_labels)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        acc = evaluate(model, g, features, test_labels, test_ids)
-        print(
-            "Epoch {:05d} | Loss {:.4f} | Accuracy {:.4f} ".format(
-                epoch, loss.item(), acc
-            )
-        )
+    model = train_sage_model()
+    save_model(model, "./model_artifacts/sage.pth")
 

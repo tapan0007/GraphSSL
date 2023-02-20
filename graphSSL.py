@@ -2,10 +2,10 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import load_elliptic_data, evaluate,load_elliptic_data_SSL
+from utils import load_elliptic_data, evaluateSSL,load_elliptic_data_SSL
 import dgl.nn as dglnn
 from dgl import AddSelfLoop
-
+import numpy as np
 
 class GraphSSL(nn.Module):
     def __init__(self, in_size, hid_size, out_size):
@@ -49,10 +49,60 @@ class LogisticRegression(nn.Module):
         loss = self.cross_entropy(logits, y)
         return logits, loss
 
-
+def evaluateSSL(model,features,supervised_features,train_ids, test_ids, train_labels, test_labels, num_class = 2, supervised=False):
+    model.eval()
+    with torch.no_grad():
+        embeddings, sim = model(g, features, torch.randperm(features.shape[0]))
+    _embeddings = embeddings.detach()
+    if supervised == True:
+        _embeddings = features
+    iters = 20
+    test_accs = []
+    emb_dim = _embeddings.shape[1]
+    for i in range(iters):
+        classifier = LogisticRegression(emb_dim, num_class).to(device)
+        optimizer = torch.optim.Adam(classifier.parameters(), lr=0.01, weight_decay=0.0)
+        for _ in range(100):
+            classifier.train()
+            logits, loss = classifier(_embeddings[train_ids], train_labels)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        test_logits, _ = classifier(_embeddings[test_ids], test_labels)
+        test_preds = torch.argmax(test_logits, dim=1)
+        test_acc = (torch.sum(test_preds == test_labels).float() / test_labels.shape[0]).detach().cpu().numpy()
+        test_accs.append(test_acc * 100)
+        #print("Finished iteration {:02} of the logistic regression classifier.test accuracy {:.2f}".format(i + 1, test_acc))
+    test_accs = np.stack(test_accs)
+    test_acc, test_std = test_accs.mean(), test_accs.std()
+    model_name = "SSL" if supervised == False else "supervised"
+    print('Average test accuracy for {}: {:.2f} with std: {:.2f}'.format(model_name,test_acc, test_std))    
+        
 if __name__ == "__main__":
     print(f"Training with DGL built-in GraphSage module")
+    parser = argparse.ArgumentParser(description="GraphSAGE")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="cora",
+        help="Dataset name ('cora', 'citeseer', 'pubmed')",
+    )
 
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=20,
+        help="Number of epochs to train SSL method",
+    )
+
+    parser.add_argument(
+        "--out_dim",
+        type=int,
+        default=16,
+        help="Dimensions of the encoder output"
+    )
+
+    args = parser.parse_args()
     # load and preprocess dataset
     transform = (
         AddSelfLoop()
@@ -64,7 +114,7 @@ if __name__ == "__main__":
 
     # create GraphSAGE model
     in_size = features.shape[1]
-    out_size = 2
+    out_size = args.out_dim
     model = GraphSSL(in_size, 100, out_size).to(device)
 
     # model training
@@ -75,7 +125,7 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=5e-4)
     
     # training loop
-    for epoch in range(200):
+    for epoch in range(args.epochs):
         model.train()
         shuffled_index = torch.randperm(features.shape[0])
         struct_distances = cos(pimg0, pimg0[shuffled_index])
@@ -89,3 +139,7 @@ if __name__ == "__main__":
                 epoch, loss.item()
             )
         )
+    supervised_features = torch.cat((features, pimg0, pimg1), 1)
+    print("Training a logistic regression model to test both SSL and supervised model")
+    evaluateSSL(model,features,supervised_features, train_ids, test_ids, train_labels, test_labels)
+    evaluateSSL(model,features,supervised_features, train_ids, test_ids, train_labels, test_labels, 2, True)

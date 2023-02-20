@@ -7,15 +7,15 @@ import dgl.nn as dglnn
 from dgl import AddSelfLoop
 import numpy as np
 
-class GraphSSL(nn.Module):
-    def __init__(self, in_size, hid_size, out_size):
+class Encoder(nn.Module):
+    def __init__(self, in_size, hid_size, out_size, decoder_size):
         super().__init__()
         self.layers = nn.ModuleList()
         # two-layer GraphSAGE-mean
         self.layers.append(dglnn.SAGEConv(in_size, hid_size, "gcn"))
         self.layers.append(dglnn.SAGEConv(hid_size, out_size, "gcn"))
         self.dropout = nn.Dropout(0.5)
-        self.sim = Similarity(1)
+        self.decoder = Decoder(out_size, decoder_size, 1)
 
     def forward(self, graph, x, shuffled_index):
         h = self.dropout(x)
@@ -24,16 +24,19 @@ class GraphSSL(nn.Module):
             if l != len(self.layers) - 1:
                 h = F.relu(h)
                 h = self.dropout(h)
-        decoder = self.sim(h, h[shuffled_index])
-        return (h, decoder)
+        dec = self.decoder(h, h[shuffled_index])
+        return (h, dec)
         
-class Similarity(nn.Module):
-    def __init__(self, dim):
+class Decoder(nn.Module):
+    def __init__(self, input_dim, output_dim, cos_dim):
         super().__init__()
-        cos=nn.CosineSimilarity(dim)
+        self.linear = nn.Linear(input_dim, output_dim)
+        cos=nn.CosineSimilarity(cos_dim)
 
     def forward(self,a,b):
-        return cos(a,b)
+        h_a = self.linear(a)
+        h_b = self.linear(b)
+        return cos(h_a,h_b)
     
 class LogisticRegression(nn.Module):
 
@@ -115,13 +118,13 @@ if __name__ == "__main__":
     # create GraphSAGE model
     in_size = features.shape[1]
     out_size = args.out_dim
-    model = GraphSSL(in_size, 100, out_size).to(device)
+    model = Encoder(in_size, 64, out_size, 2).to(device)
 
     # model training
     print("Training...")
     # define train/val samples, loss function and optimizer
-    cos = nn.CosineSimilarity(dim=1, eps=1e-6)
-    loss_mse = nn.MSELoss()
+    cos=nn.CosineSimilarity(1)
+    loss_mse = nn.MSELoss(reduction = 'sum')
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=5e-4)
     
     # training loop
@@ -129,14 +132,15 @@ if __name__ == "__main__":
         model.train()
         shuffled_index = torch.randperm(features.shape[0])
         struct_distances = cos(pimg0, pimg0[shuffled_index])
+        struct_distances = struct_distances.detach()
         h, decoder_sim = model(g, features,shuffled_index)
         loss = loss_mse(decoder_sim, struct_distances.detach())
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         print(
-            "Epoch {:05d} | Loss {:.4f}  ".format(
-                epoch, loss.item()
+            "Epoch {:05d} | Loss {:.4f} | Average Loss {:.4f}  ".format(
+                epoch, loss.item(), loss.item() / features.shape[0]
             )
         )
     supervised_features = torch.cat((features, pimg0, pimg1), 1)

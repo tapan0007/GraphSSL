@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import time
 import numpy as np
 from dgl import RemoveSelfLoop
-from utils import load_elliptic_data, evaluate
+from utils import load_elliptic_data, evaluate, save_model
 
 gcn_msg = fn.copy_u(u='h', out='m')
 gcn_reduce = fn.sum(msg='m', out='h')
@@ -81,11 +81,5 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
     model = train_gcn_model()
-    try:
-        path = "./model_artifacts/gcn.pth"
-        th.save(model.state_dict(), path)
-        print("Model saved to {}".format(path))
-    except Exception as e:
-        print("Model not saved")
-        print(e)
+    save_model(model, "./model_artifacts/gcn.pth")
 

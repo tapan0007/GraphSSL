@@ -131,16 +131,16 @@ if __name__ == "__main__":
     # model training
     print("Training...")
     # define train/val samples, loss function and optimizer
-    cos=nn.CosineSimilarity(1)
-    loss_mse = nn.MSELoss(reduction = 'sum')
+    #cos=nn.CosineSimilarity(1)
+    ce = nn.CrossEntropyLoss()
+    loss_mse = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=5e-4)
     
     # training loop
     for epoch in range(args.epochs):
         model.train()
         shuffled_index = torch.randperm(features.shape[0])
-        struct_distances = cos(pimg0, pimg0[shuffled_index])
-        struct_distances = struct_distances.detach()
+        struct_distances = ce(pimg0, pimg0[shuffled_index])
         h, decoder_sim = model(g, features,shuffled_index)
         loss = loss_mse(decoder_sim, struct_distances.detach())
         optimizer.zero_grad()

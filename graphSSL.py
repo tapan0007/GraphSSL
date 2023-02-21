@@ -2,10 +2,11 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import load_elliptic_data, evaluateSSL,load_elliptic_data_SSL
+from utils import evaluateSSL,load_elliptic_data_SSL
 import dgl.nn as dglnn
 from dgl import AddSelfLoop
 import numpy as np
+from performance import performance_metrics_ssl
 
 class Encoder(nn.Module):
     def __init__(self, in_size, hid_size, out_size, decoder_size):
@@ -52,35 +53,60 @@ class LogisticRegression(nn.Module):
         logits = self.linear(x)
         loss = self.cross_entropy(logits, y)
         return logits, loss
+    
+def train_ssl_model(g, features, pimg0):
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    g = g.int().to(device)
 
-def evaluateSSL(model,features,supervised_features,train_ids, test_ids, train_labels, test_labels, num_class = 2, supervised=False):
+    # create GraphSAGE model
+    in_size = features.shape[1]
+    out_size = args.out_dim
+    model = Encoder(in_size, args.hidden_dim, out_size, 2).to(device)
+
+    # model training
+    print("Training SSL Model Component")
+    # define train/val samples, loss function and optimizer
+    #cos=nn.CosineSimilarity(1)
+    ce = nn.CrossEntropyLoss()
+    loss_mse = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=5e-4)
+    
+    # training loop
+    for epoch in range(args.epochs):
+        model.train()
+        shuffled_index = torch.randperm(features.shape[0])
+        struct_distances = ce(pimg0, pimg0[shuffled_index])
+        h, decoder_sim = model(g, features,shuffled_index)
+        loss = loss_mse(decoder_sim, struct_distances.detach())
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        print(
+            "Epoch {:05d} | Loss {:.4f} | Average Loss {:.4f}  ".format(
+                epoch, loss.item(), loss.item() / features.shape[0]
+            )
+        )
+    return model
+
+def train_ssl_logistic_model(model, g, features, train_ids, train_labels, num_class = 2, supervised=False):
     model.eval()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     with torch.no_grad():
         embeddings, sim = model(g, features, torch.randperm(features.shape[0]))
     _embeddings = embeddings.detach()
     if supervised == True:
         _embeddings = features
-    iters = 20
-    test_accs = []
     emb_dim = _embeddings.shape[1]
-    for i in range(iters):
-        classifier = LogisticRegression(emb_dim, num_class).to(device)
-        optimizer = torch.optim.Adam(classifier.parameters(), lr=0.01, weight_decay=0.0)
-        for _ in range(100):
-            classifier.train()
-            logits, loss = classifier(_embeddings[train_ids], train_labels)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-        test_logits, _ = classifier(_embeddings[test_ids], test_labels)
-        test_preds = torch.argmax(test_logits, dim=1)
-        test_acc = (torch.sum(test_preds == test_labels).float() / test_labels.shape[0]).detach().cpu().numpy()
-        test_accs.append(test_acc * 100)
-        #print("Finished iteration {:02} of the logistic regression classifier.test accuracy {:.2f}".format(i + 1, test_acc))
-    test_accs = np.stack(test_accs)
-    test_acc, test_std = test_accs.mean(), test_accs.std()
-    model_name = "SSL" if supervised == False else "supervised"
-    print('Average test accuracy for {}: {:.2f} with std: {:.2f}'.format(model_name,test_acc, test_std))    
+    classifier = LogisticRegression(emb_dim, num_class).to(device)
+    optimizer = torch.optim.Adam(classifier.parameters(), lr=0.01, weight_decay=0.0)
+    for _ in range(100):
+        classifier.train()
+        logits, loss = classifier(_embeddings[train_ids], train_labels)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()  
+    return classifier
         
 if __name__ == "__main__":
     print(f"Training with DGL built-in GraphSage module")
@@ -95,7 +121,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--epochs",
         type=int,
-        default=20,
+        default=100,
         help="Number of epochs to train SSL method",
     )
 
@@ -120,38 +146,11 @@ if __name__ == "__main__":
     )
     g, features,pimg0,pimg1, num_nodes, feature_dim, train_ids, test_ids, train_labels, test_labels = load_elliptic_data_SSL(
                 'dataset/ellipticGraph')
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    g = g.int().to(device)
-
-    # create GraphSAGE model
-    in_size = features.shape[1]
-    out_size = args.out_dim
-    model = Encoder(in_size, args.hidden_dim, out_size, 2).to(device)
-
-    # model training
-    print("Training...")
-    # define train/val samples, loss function and optimizer
-    #cos=nn.CosineSimilarity(1)
-    ce = nn.CrossEntropyLoss()
-    loss_mse = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=5e-4)
-    
-    # training loop
-    for epoch in range(args.epochs):
-        model.train()
-        shuffled_index = torch.randperm(features.shape[0])
-        struct_distances = ce(pimg0, pimg0[shuffled_index])
-        h, decoder_sim = model(g, features,shuffled_index)
-        loss = loss_mse(decoder_sim, struct_distances.detach())
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        print(
-            "Epoch {:05d} | Loss {:.4f} | Average Loss {:.4f}  ".format(
-                epoch, loss.item(), loss.item() / features.shape[0]
-            )
-        )
+    model = train_ssl_model(g, features, pimg0)
+    classifier = train_ssl_logistic_model(model, g, features, train_ids, train_labels)
     supervised_features = torch.cat((features, pimg0, pimg1), 1)
     print("Training a logistic regression model to test both SSL and supervised model")
-    evaluateSSL(model,features,supervised_features, train_ids, test_ids, train_labels, test_labels)
+    print(type(classifier))
+    evaluateSSL(model, classifier, features, test_ids, test_labels)
+    print(performance_metrics_ssl(classifier, model, g, features, test_labels, test_ids))
     #evaluateSSL(model,features,supervised_features, train_ids, test_ids, train_labels, test_labels, 2, True)

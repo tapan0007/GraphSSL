@@ -22,6 +22,23 @@ def performance_metrics(model, g, features, labels, mask):
     g_mean = geometric_mean_score(labels, preds)
     return f1, g_mean, auroc
 
+def performance_metrics_ssl(classifier, model, g, features, labels, mask):
+    """Calculates the AUC ROC, Geometric mean, and macro-f1 score to measure
+    model performance.
+    """
+    model.eval()
+    with th.no_grad():
+        embeddings, sim = model(g, features, th.randperm(features.shape[0]))
+    _embeddings = embeddings.detach()
+
+    logits, _ = classifier(_embeddings[mask], labels)
+    preds = th.argmax(logits, dim=1)
+
+    f1 = metrics.f1_score(labels, preds, average="macro")
+    auroc = metrics.roc_auc_score(labels, preds)
+    g_mean = geometric_mean_score(labels, preds)
+    return f1, g_mean, auroc
+
 
 if __name__ == '__main__':
     g, features, _, _, _, test_ids, _, test_labels = load_elliptic_data(

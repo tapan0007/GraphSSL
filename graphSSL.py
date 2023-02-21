@@ -31,12 +31,13 @@ class Decoder(nn.Module):
     def __init__(self, input_dim, output_dim, cos_dim):
         super().__init__()
         self.linear = nn.Linear(input_dim, output_dim)
-        cos=nn.CosineSimilarity(cos_dim)
+        self.cos=nn.CosineSimilarity(cos_dim)
+        self.cross_entropy = nn.CrossEntropyLoss()
 
     def forward(self,a,b):
         h_a = self.linear(a)
         h_b = self.linear(b)
-        return cos(h_a,h_b)
+        return self.cross_entropy(h_a,h_b)
     
 class LogisticRegression(nn.Module):
 
@@ -153,4 +154,4 @@ if __name__ == "__main__":
     supervised_features = torch.cat((features, pimg0, pimg1), 1)
     print("Training a logistic regression model to test both SSL and supervised model")
     evaluateSSL(model,features,supervised_features, train_ids, test_ids, train_labels, test_labels)
-    evaluateSSL(model,features,supervised_features, train_ids, test_ids, train_labels, test_labels, 2, True)
+    #evaluateSSL(model,features,supervised_features, train_ids, test_ids, train_labels, test_labels, 2, True)

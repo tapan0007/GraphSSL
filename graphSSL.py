@@ -98,7 +98,7 @@ if __name__ == "__main__":
         help="Number of epochs to train SSL method",
     )
 
-        parser.add_argument(
+    parser.add_argument(
         "--hidden_dim",
         type=int,
         default=64,

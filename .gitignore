@@ -1,6 +1,7 @@
 dataset/*
 *.pyc
 *.DS_Store
-*.ipynb
+.ipynb_checkpoints/*
 model_artifacts/*
 performance/*
+EvaluationModels.ipynb

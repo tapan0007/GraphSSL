@@ -79,3 +79,13 @@ def load_model(model_class, path, in_size, out_size):
     model = model_class(in_size, 100, out_size)
     model.load_state_dict(th.load(path))
     return model.eval()
+
+def load_ssl_model(model_class, path, in_size, hid_size, out_size, decoder_size):
+    model = model_class(in_size, hid_size, out_size, decoder_size)
+    model.load_state_dict(th.load(path))
+    return model.eval()
+
+def load_log_reg(model_class, path, num_dim, num_class):
+    model = model_class(num_dim, num_class)
+    model.load_state_dict(th.load(path))
+    return model.eval()

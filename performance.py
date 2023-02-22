@@ -3,7 +3,6 @@ from gcn import Net
 from graphSAGE import SAGE
 from sklearn import metrics
 from imblearn.metrics import geometric_mean_score
-import matplotlib.pyplot as plt
 import pandas as pd
 from utils import load_model, load_elliptic_data
 

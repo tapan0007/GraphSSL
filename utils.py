@@ -18,7 +18,7 @@ def load_elliptic_data(path):
     n_nodes, feat_dim = feats.shape[0], feats.shape[1]
     known_ids = np.array(dataset[1]['ids'])
     node_labels = dataset[1]['labels']
-    train_nid, test_nid, train_l, test_l = sk.train_test_split(known_ids, node_labels, test_size=0.6, random_state=42)
+    train_nid, test_nid, train_l, test_l = sk.train_test_split(known_ids, node_labels, test_size=0.95, random_state=42)
     return g, feats, n_nodes, feat_dim, train_nid, test_nid, train_l, test_l
 
 # remove this function after testing
@@ -35,7 +35,7 @@ def load_elliptic_data_SSL(path):
     n_nodes, feat_dim = feats.shape[0], feats.shape[1]
     known_ids = np.array(dataset[1]['ids'])
     node_labels = dataset[1]['labels']
-    train_nid, test_nid, train_l, test_l = sk.train_test_split(known_ids, node_labels, test_size=0.6, random_state=42)
+    train_nid, test_nid, train_l, test_l = sk.train_test_split(known_ids, node_labels, test_size=0.95, random_state=42)
     return g, feats,pimg0,pimg1, n_nodes, feat_dim, train_nid, test_nid, train_l, test_l
 
 

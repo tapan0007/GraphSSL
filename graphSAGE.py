@@ -5,15 +5,15 @@ import torch.nn.functional as F
 from utils import load_elliptic_data, evaluate, save_model
 import dgl.nn as dglnn
 from dgl import AddSelfLoop
-
+import numpy as np
 
 class SAGE(nn.Module):
     def __init__(self, in_size, hid_size, out_size):
         super().__init__()
         self.layers = nn.ModuleList()
         # two-layer GraphSAGE-mean
-        self.layers.append(dglnn.SAGEConv(in_size, hid_size, "gcn"))
-        self.layers.append(dglnn.SAGEConv(hid_size, out_size, "gcn"))
+        self.layers.append(dglnn.SAGEConv(in_size, hid_size, "mean"))
+        self.layers.append(dglnn.SAGEConv(hid_size, out_size, "mean"))
         self.dropout = nn.Dropout(0.5)
 
     def forward(self, graph, x):
@@ -30,6 +30,7 @@ def train_sage_model(path_to_data='dataset/ellipticGraph'):
                 path_to_data)
     device = th.device("cuda" if th.cuda.is_available() else "cpu")
     g = g.int().to(device)
+    anomaly_ratio = np.count_nonzero(test_labels == 1) / len(test_labels)
 
     # create GraphSAGE model
     in_size = features.shape[1]
@@ -39,7 +40,7 @@ def train_sage_model(path_to_data='dataset/ellipticGraph'):
     # model training
     print("Training graphSAGE model...")
     # define train/val samples, loss function and optimizer
-    loss_fcn = nn.CrossEntropyLoss()
+    loss_fcn = nn.CrossEntropyLoss(weight=th.FloatTensor([1, (1/anomaly_ratio)]))
     optimizer = th.optim.Adam(model.parameters(), lr=1e-2, weight_decay=5e-4)
 
     # training loop

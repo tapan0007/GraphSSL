@@ -42,20 +42,21 @@ class Net(nn.Module):
 def train_gcn_model(path_to_data='dataset/ellipticGraph'):
     print(f"Training with DGL built-in GCN module")
     g, features, num_nodes, feature_dim, train_ids, test_ids, train_labels, test_labels = load_elliptic_data(path_to_data)
+    anomaly_ratio = np.count_nonzero(test_labels == 1) / len(test_labels)
     net = Net(feature_dim, 100, 2)
 
     g.add_edges(g.nodes(), g.nodes())
 
     optimizer = th.optim.Adam(net.parameters(), lr=1e-2)
     dur = []
-    for epoch in range(100):
+    for epoch in range(200):
         if epoch >= 3:
             t0 = time.time()
 
         net.train()
         logits = net(g, features)
         logp = F.log_softmax(logits, 1)
-        loss = F.nll_loss(logp[train_ids], train_labels)
+        loss = F.nll_loss(logp[train_ids], train_labels, weight=th.FloatTensor([1, (1/anomaly_ratio)]))
 
         optimizer.zero_grad()
         loss.backward()

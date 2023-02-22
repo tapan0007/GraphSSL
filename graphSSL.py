@@ -2,11 +2,10 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import evaluateSSL,load_elliptic_data_SSL
+from utils import evaluateSSL,load_elliptic_data_SSL, save_model
 import dgl.nn as dglnn
 from dgl import AddSelfLoop
 import numpy as np
-from performance import performance_metrics_ssl
 
 class Encoder(nn.Module):
     def __init__(self, in_size, hid_size, out_size, decoder_size):
@@ -147,10 +146,9 @@ if __name__ == "__main__":
     g, features,pimg0,pimg1, num_nodes, feature_dim, train_ids, test_ids, train_labels, test_labels = load_elliptic_data_SSL(
                 'dataset/ellipticGraph')
     model = train_ssl_model(g, features, pimg0)
+    save_model(model, "./model_artifacts/ssl_model.pth")
     classifier = train_ssl_logistic_model(model, g, features, train_ids, train_labels)
+    save_model(classifier, "./model_artifacts/ssl_classifier.pth")
     supervised_features = torch.cat((features, pimg0, pimg1), 1)
-    print("Training a logistic regression model to test both SSL and supervised model")
-    print(type(classifier))
     evaluateSSL(model, classifier, features, test_ids, test_labels)
-    print(performance_metrics_ssl(classifier, model, g, features, test_labels, test_ids))
     #evaluateSSL(model,features,supervised_features, train_ids, test_ids, train_labels, test_labels, 2, True)

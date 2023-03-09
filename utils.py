@@ -11,8 +11,11 @@ def load_elliptic_data(path):
     feats = g.ndata['features']
     # Below can be removed if test metrics do not perform well
     graph_structure = dgl.load_graphs('dataset/ellipticGraph_pimg')
+    # Ablation Study, only add pimg0 or only add pimg1 or add both
     pimg0 = graph_structure[0][0].ndata['pimgs0']
+    # feats = th.cat((feats, pimg0), 1)
     pimg1 = graph_structure[0][0].ndata['pimgs1']
+    # feats = th.cat((feats, pimg1), 1)
     feats = th.cat((feats, pimg0, pimg1), 1)
     # Till here
     n_nodes, feat_dim = feats.shape[0], feats.shape[1]

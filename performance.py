@@ -2,7 +2,7 @@
 import torch as th
 from gcn import Net
 from graphSAGE import SAGE
-from graphSSL import LogisticRegression, Encoder
+from graphSSL import LogisticRegression, Encoder, train_ssl_logistic_model
 from ssldegree import Predictor, train_ssldegree_logistic_model
 from sklearn import metrics
 from imblearn.metrics import geometric_mean_score
@@ -30,7 +30,7 @@ def performance_metrics_ssl(classifier, model, g, features, labels, mask):
     """
     model.eval()
     with th.no_grad():
-        embeddings, sim = model(g, features, th.randperm(features.shape[0]))
+        embeddings = model(g, features, None, None, "test")
     _embeddings = embeddings.detach()
 
     logits, _ = classifier(_embeddings[mask], labels)
@@ -77,7 +77,13 @@ def ssldegree_performance(g, features, train_ids, train_labels, test_labels, tes
      ssldegree_f1, ssldegree_g_mean, ssldegree_auroc = performance_metrics_ssldegree(encoder, classifier, g, features, test_labels, test_ids)
      return [ssldegree_f1, ssldegree_g_mean, ssldegree_auroc]
 
-
+def graphSSL_performance(g, features, train_ids, train_labels, test_labels, test_ids):
+    ssl_model = load_ssl_model(Encoder, in_size=features.shape[1], 
+                           hid_size1=64, hid_size2=32, out_size=16, decoder_size=2)
+    anomaly_ratio = .097
+    classifier = train_ssl_logistic_model(ssl_model, g, features, train_ids, train_labels, anomaly_ratio)
+    graphSSL_f1, graphSSL_g_mean, graphSSL_auroc = performance_metrics_ssl(classifier, ssl_model, g, features, test_labels, test_ids)
+    return [graphSSL_f1, graphSSL_g_mean, graphSSL_auroc]
 
 if __name__ == '__main__':
     # Get metrics for gcn and graphSAGE
@@ -90,13 +96,16 @@ if __name__ == '__main__':
     g, features,pimg0,pimg1, num_nodes, feature_dim, train_ids, test_ids, train_labels, test_labels = load_elliptic_data_SSL(
          'dataset/ellipticGraph')
     ssldegree_metrics = ssldegree_performance(g, features, train_ids, train_labels, test_labels, test_ids)
+    graphSSL_metrics = graphSSL_performance(g, features, train_ids, train_labels, test_labels, test_ids)
+
 
     print(gcn_metrics)
     print(sage_metrics)
     print(ssldegree_metrics)
+    print(graphSSL_metrics)
 
-    data = [gcn_metrics, sage_metrics, ssldegree_metrics]
-    metrics = pd.DataFrame(data, columns=["F1 Score", "Geo Mean", "AUROC"], index=["GCN", "GraphSAGE", "SSLDegree"])
+    data = [gcn_metrics, sage_metrics, ssldegree_metrics, graphSSL_metrics]
+    metrics = pd.DataFrame(data, columns=["F1 Score", "Geo Mean", "AUROC"], index=["GCN", "GraphSAGE", "SSLDegree", "GraphSSL"])
     metrics.to_csv("./performance/results.csv")
 
     # g, features,_,_, _, _, _, test_ids, _, test_labels = load_elliptic_data_SSL(

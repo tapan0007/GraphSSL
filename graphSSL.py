@@ -66,8 +66,9 @@ def load_diagrams(pickle_file):
         contents_H0 = pickle.load(fp)
     return contents_H0
 
-contents_H0 = load_diagrams("contents_H0.pkl")
+
 def compute_bottleneck_distance(sample_batch, node_batches):
+    contents_H0 = load_diagrams("contents_H0.pkl")
     ret = []
     for i in range(len(sample_batch)):
         b_dis = []
@@ -79,6 +80,7 @@ def compute_bottleneck_distance(sample_batch, node_batches):
     return torch.tensor(ret)
 
 def train_ssl_model(g, features, pimg0):
+    contents_H0 = load_diagrams("contents_H0.pkl")
     #device = "cpu"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     g = g.int().to(device)
@@ -209,6 +211,6 @@ if __name__ == "__main__":
     model = train_ssl_model(g, features, pimg0)
     save_model(model, "./model_artifacts/ssl_model.pth")
     anomaly_ratio = np.count_nonzero(test_labels == 1) / len(test_labels)
-    classifier = train_ssl_logistic_model(model, g, features, train_ids, train_labels,anomaly_ratio)
+    classifier = train_ssl_logistic_model(model, g, features, train_ids, train_labels, anomaly_ratio)
     save_model(classifier, "./model_artifacts/ssl_classifier.pth")
     evaluateSSL(model, classifier, features, test_ids, test_labels)

@@ -1,11 +1,12 @@
 import dgl
 import sklearn.model_selection as sk
 import numpy as np
+#from ssldegree import Predictor
 #from graphSSL import LogisticRegression
 import torch as th
 import torch
 
-def load_elliptic_data(path):
+def load_elliptic_data(path, random_split=True):
     dataset = dgl.load_graphs(path)
     g = dataset[0][0]
     feats = g.ndata['features']
@@ -41,9 +42,6 @@ def load_elliptic_data_SSL(path):
     train_nid, test_nid, train_l, test_l = sk.train_test_split(known_ids, node_labels, test_size=0.95, random_state=42)
     return g, feats,pimg0,pimg1, n_nodes, feat_dim, train_nid, test_nid, train_l, test_l
 
-
-g, features, pimg0, pimg1,num_nodes, feature_dim, train_ids, test_ids, train_labels, test_labels = load_elliptic_data_SSL(
-                'dataset/ellipticGraph')
 
 def evaluate(model, g, features, labels, mask):
     model.eval()
@@ -86,6 +84,12 @@ def load_model(model_class, path, in_size, out_size):
 def load_ssl_model(model_class, path, in_size, hid_size, out_size, decoder_size):
     model = model_class(in_size, hid_size, out_size, decoder_size)
     model.load_state_dict(th.load(path))
+    return model.eval()
+
+def load_ssl_degree_model(model_class, g):
+    model = model_class(g, 128)
+    path="./trainedmodel/ssl_predictor_node_200.pt"
+    model.load_state_dict(torch.load(path, map_location=torch.device('cpu')))
     return model.eval()
 
 def load_log_reg(model_class, path, num_dim, num_class):

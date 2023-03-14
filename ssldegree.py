@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import dgl.nn as dglnn
+from graphSSL import LogisticRegression
 
 
 class Encoder(nn.Module):
@@ -76,6 +77,27 @@ class Predictor(nn.Module):
             degrees = self.graph.ndata['degree'][index].to(torch.float)
             output = self.forward()[index].squeeze()
             return self.mse(output, degrees)
+        
+def train_ssldegree_logistic_model(model, g, features, train_ids, train_labels, anomaly_ratio,num_class = 2, supervised=False):
+    encoder = model.encoder
+    encoder.eval()
+    #device = "cpu"
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    with torch.no_grad():
+        embeddings = encoder(g, features)
+    _embeddings = embeddings.detach()
+    if supervised == True:
+        _embeddings = features
+    emb_dim = _embeddings.shape[1]
+    classifier = LogisticRegression(emb_dim, num_class,anomaly_ratio).to(device)
+    optimizer = torch.optim.Adam(classifier.parameters(), lr=0.01, weight_decay=0.0)
+    for _ in range(100):
+        classifier.train()
+        logits, loss = classifier(_embeddings[train_ids].to(device), train_labels.to(device))
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()  
+    return classifier
 
 
 if __name__ == "__main__":

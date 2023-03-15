@@ -1,12 +1,11 @@
-import argparse, time
-
-import dgl
-import numpy as np
-import torch
+import argparse
+import time
 import torch.nn as nn
 import torch.nn.functional as F
-from dgi import Classifier, DGI
 from dgl.data import load_data, register_data_args
+
+from dgi import Classifier, DGI
+from utils import *
 
 
 def evaluate(model, features, labels, mask):
@@ -14,40 +13,40 @@ def evaluate(model, features, labels, mask):
     with torch.no_grad():
         logits = model(features)
         logits = logits[mask]
-        labels = labels[mask]
         _, indices = torch.max(logits, dim=1)
         correct = torch.sum(indices == labels)
-        return correct.item() * 1.0 / len(labels)
+    return correct.item() * 1.0 / len(labels)
 
 
 def main(args):
     # load and preprocess dataset
-    data = load_data(args)
-    g = data[0]
-    features = torch.FloatTensor(g.ndata["feat"])
-    labels = torch.LongTensor(g.ndata["label"])
-    if hasattr(torch, "BoolTensor"):
-        train_mask = torch.BoolTensor(g.ndata["train_mask"])
-        val_mask = torch.BoolTensor(g.ndata["val_mask"])
-        test_mask = torch.BoolTensor(g.ndata["test_mask"])
-    else:
-        train_mask = torch.ByteTensor(g.ndata["train_mask"])
-        val_mask = torch.ByteTensor(g.ndata["val_mask"])
-        test_mask = torch.ByteTensor(g.ndata["test_mask"])
-    in_feats = features.shape[1]
-    n_classes = data.num_classes
-    n_edges = g.number_of_edges()
+    # data = load_data(args)
+    path_to_data = "dataset/ellipticGraph"
+    g, features, num_nodes, feature_dim, train_ids, test_ids, train_labels, test_labels = load_elliptic_data(
+        path_to_data)
+    # features = torch.FloatTensor(g.ndata["feat"])
+    # labels = torch.LongTensor(g.ndata["label"])
+    # if hasattr(torch, "BoolTensor"):
+    #     train_mask = torch.BoolTensor(g.ndata["train_mask"])
+    #     val_mask = torch.BoolTensor(g.ndata["val_mask"])
+    #     test_mask = torch.BoolTensor(g.ndata["test_mask"])
+    # else:
+    #     train_mask = torch.ByteTensor(g.ndata["train_mask"])
+    #     val_mask = torch.ByteTensor(g.ndata["val_mask"])
+    #     test_mask = torch.ByteTensor(g.ndata["test_mask"])
+    in_feats = feature_dim
+    n_classes = 2
 
-    if args.gpu < 0:
-        cuda = False
-    else:
-        cuda = True
-        torch.cuda.set_device(args.gpu)
-        features = features.cuda()
-        labels = labels.cuda()
-        train_mask = train_mask.cuda()
-        val_mask = val_mask.cuda()
-        test_mask = test_mask.cuda()
+    # if args.gpu < 0:
+    #     cuda = False
+    # else:
+    #     cuda = True
+    #     torch.cuda.set_device(args.gpu)
+    #     features = features.cuda()
+    #     labels = labels.cuda()
+    #     train_mask = train_mask.cuda()
+    #     val_mask = val_mask.cuda()
+    #     test_mask = test_mask.cuda()
 
     # add self loop
     if args.self_loop:
@@ -67,8 +66,8 @@ def main(args):
         args.dropout,
     )
 
-    if cuda:
-        dgi.cuda()
+    # if cuda:
+    #     dgi.cuda()
 
     dgi_optimizer = torch.optim.Adam(
         dgi.parameters(), lr=args.dgi_lr, weight_decay=args.weight_decay
@@ -113,8 +112,8 @@ def main(args):
 
     # create classifier model
     classifier = Classifier(args.n_hidden, n_classes)
-    if cuda:
-        classifier.cuda()
+    # if cuda:
+    #     classifier.cuda()
 
     classifier_optimizer = torch.optim.Adam(
         classifier.parameters(),
@@ -135,27 +134,27 @@ def main(args):
 
         classifier_optimizer.zero_grad()
         preds = classifier(embeds)
-        loss = F.nll_loss(preds[train_mask], labels[train_mask])
+        loss = F.nll_loss(preds[train_ids], train_labels)
         loss.backward()
         classifier_optimizer.step()
 
         if epoch >= 3:
             dur.append(time.time() - t0)
 
-        acc = evaluate(classifier, embeds, labels, val_mask)
-        print(
-            "Epoch {:05d} | Time(s) {:.4f} | Loss {:.4f} | Accuracy {:.4f} | "
-            "ETputs(KTEPS) {:.2f}".format(
-                epoch,
-                np.mean(dur),
-                loss.item(),
-                acc,
-                n_edges / np.mean(dur) / 1000,
-            )
-        )
+        # acc = evaluate(classifier, embeds, labels, val_mask)
+        # print(
+        #     "Epoch {:05d} | Time(s) {:.4f} | Loss {:.4f} | Accuracy {:.4f} | "
+        #     "ETputs(KTEPS) {:.2f}".format(
+        #         epoch,
+        #         np.mean(dur),
+        #         loss.item(),
+        #         acc,
+        #         n_edges / np.mean(dur) / 1000,
+        #     )
+        # )
 
     print()
-    acc = evaluate(classifier, embeds, labels, test_mask)
+    acc = evaluate(classifier, embeds, test_labels, test_ids)
     print("Test Accuracy {:.4f}".format(acc))
 
 
@@ -209,3 +208,4 @@ if __name__ == "__main__":
     print(args)
 
     main(args)
+

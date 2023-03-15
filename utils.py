@@ -24,6 +24,7 @@ def load_elliptic_data(path):
     train_nid, test_nid, train_l, test_l = sk.train_test_split(known_ids, node_labels, test_size=0.95, random_state=42)
     return g, feats, n_nodes, feat_dim, train_nid, test_nid, train_l, test_l
 
+
 # remove this function after testing
 def load_elliptic_data_SSL(path):
     dataset = dgl.load_graphs(path)

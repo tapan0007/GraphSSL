@@ -157,6 +157,8 @@ def main(args):
     acc = evaluate(classifier, embeds, test_labels, test_ids)
     print("Test Accuracy {:.4f}".format(acc))
 
+    save_model(classifier, "model_artifacts/best_dgi_classifier.pth")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="DGI")

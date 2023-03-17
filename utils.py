@@ -91,7 +91,8 @@ def load_ssl_model(model_class, in_size, hid_size1, hid_size2, out_size, decoder
 def load_ssl_degree_model(model_class, g):
     model = model_class(g, 128)
     path="./trainedmodel/ssl_predictor_node_200.pt"
-    model.load_state_dict(torch.load(path, map_location=torch.device('cpu')))
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.load_state_dict(torch.load(path, map_location=device))
     return model.eval()
 
 def load_log_reg(model_class, path, num_dim, num_class):

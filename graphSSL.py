@@ -143,7 +143,7 @@ def train_ssl_model(g, features, pimg0):
         )
     return model
 
-def train_ssl_logistic_model(model, g, features, train_ids, train_labels, anomaly_ratio,num_class = 2, supervised=False):
+def train_ssl_downstream(model, g, features, train_ids, train_labels, anomaly_ratio,num_class = 2, supervised=False):
     model.eval()
     #device = "cpu"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -153,7 +153,7 @@ def train_ssl_logistic_model(model, g, features, train_ids, train_labels, anomal
     if supervised == True:
         _embeddings = features
     emb_dim = _embeddings.shape[1]
-    classifier = LogisticRegression(emb_dim, num_class,anomaly_ratio).to(device)
+    classifier = MLP(emb_dim, num_class,anomaly_ratio).to(device)
     optimizer = torch.optim.Adam(classifier.parameters(), lr=0.01, weight_decay=0.0)
     for _ in range(100):
         classifier.train()
@@ -232,6 +232,6 @@ if __name__ == "__main__":
     model = train_ssl_model(g, features, pimg0)
     save_model(model, "./model_artifacts/ssl_model.pth")
     anomaly_ratio = np.count_nonzero(test_labels == 1) / len(test_labels)
-    classifier = train_ssl_logistic_model(model, g, features, train_ids, train_labels, anomaly_ratio)
+    classifier = train_ssl_downstream(model, g, features, train_ids, train_labels, anomaly_ratio)
     save_model(classifier, "./model_artifacts/ssl_classifier.pth")
     evaluateSSL(model, classifier, features, test_ids, test_labels)

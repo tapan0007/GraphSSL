@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import dgl.nn as dglnn
-from graphSSL import LogisticRegression
+from graphSSL import MLP, LogisticRegression
 
 
 class Encoder(nn.Module):
@@ -78,7 +78,7 @@ class Predictor(nn.Module):
             output = self.forward()[index].squeeze()
             return self.mse(output, degrees)
         
-def train_ssldegree_logistic_model(model, g, features, train_ids, train_labels, anomaly_ratio,num_class = 2, supervised=False):
+def train_ssldegree_downstream(model, g, features, train_ids, train_labels, anomaly_ratio,num_class = 2, supervised=False):
     encoder = model.encoder
     encoder.eval()
     #device = "cpu"
@@ -89,7 +89,7 @@ def train_ssldegree_logistic_model(model, g, features, train_ids, train_labels, 
     if supervised == True:
         _embeddings = features
     emb_dim = _embeddings.shape[1]
-    classifier = LogisticRegression(emb_dim, num_class,anomaly_ratio).to(device)
+    classifier = MLP(emb_dim, num_class,anomaly_ratio).to(device)
     optimizer = torch.optim.Adam(classifier.parameters(), lr=0.01, weight_decay=0.0)
     for _ in range(100):
         classifier.train()
@@ -98,6 +98,7 @@ def train_ssldegree_logistic_model(model, g, features, train_ids, train_labels, 
         loss.backward()
         optimizer.step()  
     return classifier
+
 
 
 if __name__ == "__main__":

@@ -4,8 +4,8 @@ import torch as th
 import torch.nn as nn
 from gcn import Net
 from graphSAGE import SAGE
-from graphSSL import LogisticRegression, Encoder, train_ssl_logistic_model
-from ssldegree import Predictor, train_ssldegree_logistic_model
+from graphSSL import Encoder, train_ssl_downstream
+from ssldegree import Predictor, train_ssldegree_downstream
 from sklearn import metrics
 from imblearn.metrics import geometric_mean_score
 import pandas as pd
@@ -21,7 +21,7 @@ def performance_metrics(model, g, features, labels, mask):
         logits = logits[mask]
         _, preds = th.max(logits, dim=1)
 
-    f1 = metrics.f1_score(labels, preds, average="macro")
+    f1 = metrics.f1_score(labels, preds, average="micro")
     auroc = metrics.roc_auc_score(labels, preds)
     g_mean = geometric_mean_score(labels, preds)
     return f1, g_mean, auroc
@@ -38,7 +38,7 @@ def performance_metrics_ssl(classifier, model, g, features, labels, mask):
     logits, _ = classifier(_embeddings[mask], labels)
     preds = th.argmax(logits, dim=1)
 
-    f1 = metrics.f1_score(labels, preds, average="macro")
+    f1 = metrics.f1_score(labels, preds, average="micro")
     auroc = metrics.roc_auc_score(labels, preds)
     g_mean = geometric_mean_score(labels, preds)
     return f1, g_mean, auroc
@@ -52,7 +52,7 @@ def performance_metrics_ssldegree(encoder, classifier, g, features, labels, mask
     logits, _ = classifier(_embeddings[mask], labels)
     preds = th.argmax(logits, dim=1)
 
-    f1 = metrics.f1_score(test_labels, preds, average="macro")
+    f1 = metrics.f1_score(test_labels, preds, average="micro")
     auroc = metrics.roc_auc_score(test_labels, preds)
     g_mean = geometric_mean_score(test_labels, preds)
     return f1, g_mean, auroc
@@ -67,7 +67,7 @@ def performance_metrics_dgi(dgi, classifier, features, labels, mask):
         logits = logits[mask]
         _, preds = th.max(logits, dim=1)
 
-    dgi_f1 = metrics.f1_score(labels, preds, average="macro")
+    dgi_f1 = metrics.f1_score(labels, preds, average="micro")
     dgi_auroc = metrics.roc_auc_score(labels, preds)
     dgi_g_mean = geometric_mean_score(labels, preds)
     return dgi_f1, dgi_g_mean, dgi_auroc
@@ -89,7 +89,7 @@ def sage_performance(g, features, test_labels, test_ids):
 def ssldegree_performance(g, features, train_ids, train_labels, test_labels, test_ids):
      model = load_ssl_degree_model(Predictor, g)
      anomaly_ratio = .097
-     classifier = train_ssldegree_logistic_model(model, g, features, train_ids, train_labels, anomaly_ratio)
+     classifier = train_ssldegree_downstream(model, g, features, train_ids, train_labels, anomaly_ratio)
      encoder = model.encoder
      ssldegree_f1, ssldegree_g_mean, ssldegree_auroc = performance_metrics_ssldegree(encoder, classifier, g, features, test_labels, test_ids)
      return [ssldegree_f1, ssldegree_g_mean, ssldegree_auroc]
@@ -107,7 +107,7 @@ def graphSSL_performance(g, features, train_ids, train_labels, test_labels, test
     ssl_model = load_ssl_model(Encoder, in_size=features.shape[1], 
                            hid_size1=64, hid_size2=32, out_size=16, decoder_size=2)
     anomaly_ratio = .097
-    classifier = train_ssl_logistic_model(ssl_model, g, features, train_ids, train_labels, anomaly_ratio)
+    classifier = train_ssl_downstream(ssl_model, g, features, train_ids, train_labels, anomaly_ratio)
     graphSSL_f1, graphSSL_g_mean, graphSSL_auroc = performance_metrics_ssl(classifier, ssl_model, g, features, test_labels, test_ids)
     return [graphSSL_f1, graphSSL_g_mean, graphSSL_auroc]
 

@@ -61,10 +61,32 @@ class LogisticRegression(nn.Module):
         loss = self.cross_entropy(logits, y)
         return logits, loss
 
+class MLP(nn.Module):
+    def __init__(self, num_dim, num_class,anomaly_ratio=None, num_layers=3, hid_size=128):
+        super(MLP, self).__init__()
+        self.layers = nn.ModuleList()
+        dims = [num_dim] + [hid_size] * (num_layers - 1) + [num_class]
+        for in_dim, out_dim in zip(dims[:-1], dims[1:]):
+            self.layers.append(nn.Linear(in_dim, out_dim))
+        self.activation = nn.ReLU()
+        self.xent = nn.CosineEmbeddingLoss(weight=torch.FloatTensor([1, (1/anomaly_ratio)]))
+
+    def forward(self, x, y):
+        h = x
+        for layer in self.layers[:-1]:
+            h = self.activation(layer(h))
+        logits = self.layers[-1](h)
+        loss = self.xent(logits, y)
+        return logits, loss
+
+
+
 def load_diagrams(pickle_file):
     with open(pickle_file, "rb") as fp:   #Pickling
         contents_H0 = pickle.load(fp)
     return contents_H0
+
+
 
 
 def compute_bottleneck_distance(sample_batch, node_batches):

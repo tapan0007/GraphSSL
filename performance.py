@@ -21,7 +21,7 @@ def performance_metrics(model, g, features, labels, mask):
         logits = logits[mask]
         _, preds = th.max(logits, dim=1)
 
-    f1 = metrics.f1_score(labels, preds, average="micro")
+    f1 = metrics.f1_score(labels, preds, average="macro")
     auroc = metrics.roc_auc_score(labels, preds)
     g_mean = geometric_mean_score(labels, preds)
     return f1, g_mean, auroc
@@ -38,7 +38,7 @@ def performance_metrics_ssl(classifier, model, g, features, labels, mask):
     logits, _ = classifier(_embeddings[mask], labels)
     preds = th.argmax(logits, dim=1)
 
-    f1 = metrics.f1_score(labels, preds, average="micro")
+    f1 = metrics.f1_score(labels, preds, average="macro")
     auroc = metrics.roc_auc_score(labels, preds)
     g_mean = geometric_mean_score(labels, preds)
     return f1, g_mean, auroc
@@ -52,7 +52,7 @@ def performance_metrics_ssldegree(encoder, classifier, g, features, labels, mask
     logits, _ = classifier(_embeddings[mask], labels)
     preds = th.argmax(logits, dim=1)
 
-    f1 = metrics.f1_score(test_labels, preds, average="micro")
+    f1 = metrics.f1_score(test_labels, preds, average="macro")
     auroc = metrics.roc_auc_score(test_labels, preds)
     g_mean = geometric_mean_score(test_labels, preds)
     return f1, g_mean, auroc
@@ -67,7 +67,7 @@ def performance_metrics_dgi(dgi, classifier, features, labels, mask):
         logits = logits[mask]
         _, preds = th.max(logits, dim=1)
 
-    dgi_f1 = metrics.f1_score(labels, preds, average="micro")
+    dgi_f1 = metrics.f1_score(labels, preds, average="macro")
     dgi_auroc = metrics.roc_auc_score(labels, preds)
     dgi_g_mean = geometric_mean_score(labels, preds)
     return dgi_f1, dgi_g_mean, dgi_auroc

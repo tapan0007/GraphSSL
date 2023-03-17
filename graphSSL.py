@@ -69,7 +69,7 @@ class MLP(nn.Module):
         for in_dim, out_dim in zip(dims[:-1], dims[1:]):
             self.layers.append(nn.Linear(in_dim, out_dim))
         self.activation = nn.ReLU()
-        self.xent = nn.CosineEmbeddingLoss(weight=torch.FloatTensor([1, (1/anomaly_ratio)]))
+        self.xent = nn.CrossEntropyLoss(weight=torch.FloatTensor([1, (1/anomaly_ratio)]))
 
     def forward(self, x, y):
         h = x
@@ -78,7 +78,6 @@ class MLP(nn.Module):
         logits = self.layers[-1](h)
         loss = self.xent(logits, y)
         return logits, loss
-
 
 
 def load_diagrams(pickle_file):

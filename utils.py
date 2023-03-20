@@ -6,6 +6,16 @@ import numpy as np
 import torch as th
 import torch
 
+
+def load_cora(path):
+    dataset = dgl.load_graphs(path)
+    g = dataset[0][0]
+    feats = g.ndata['feat']
+    node_labels = g.ndata['label']
+    n_nodes, feat_dim = feats.shape[0], feats.shape[1]
+    return g, feats, n_nodes, feat_dim, node_labels
+
+
 def load_elliptic_data(path):
     dataset = dgl.load_graphs(path)
     g = dataset[0][0]
